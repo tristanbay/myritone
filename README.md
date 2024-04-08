@@ -5,7 +5,9 @@ A microtuning file format designed to be backwards-compatible with [Scala files]
 * Express equal divisions of other just intervals with a\b\<c/d> = a/b of interval c/d
 * Use intervals with numerators and denominators that have up to 20 decimal digits (a maximum of 2^64 - 1, or about 18.4 quintillion)
 
-Even chunkier just intervals and no more pesky decimal cents for EDOs, Bohlen-Pierce, and more!
+Even chunkier just intervals and no more pesky decimal cents for EDOs, Bohlen-Pierce, and more! This additional syntax was taken from [Scale Workshop](https://scaleworkshop.plainsound.org).
+
+Myritone is similar to a subset of the more powerful [SonicWeave language](https://github.com/xenharmonic-devs/sonic-weave).
 
 The program in this repository is a command line tool that reads in a scale in the Myritone format and converts it to Scala. My goal is to add more output formats for this program, like AnaMark .tun, Korg 'logue, MTS SysEx, and so on.
 
