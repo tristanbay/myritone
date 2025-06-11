@@ -39,7 +39,7 @@ void read_scale(FILE* scale_in, scalenote* scale, unsigned len)
 	double e;
 	char x;
 	fgets(temp, LINE_MAX, scale_in);
-	for (unsigned i = 0; i < len; ++i) {
+	for (unsigned i = 0; i < len && !feof(scale_in); ++i) { // read and pattern match
 		fgets(temp, LINE_MAX, scale_in);
 		if (temp[strnlen(temp, LINE_MAX) - 1] == '\n') // remove newline
 			temp[strnlen(temp, LINE_MAX) - 1] = '\0'; // from end of each line
@@ -65,7 +65,7 @@ void read_scale(FILE* scale_in, scalenote* scale, unsigned len)
 			scale[i].ji.d = 1;
 			sscanf(temp, "%lf", &e);
 			scale[i].ed.n = round(e * 1.0e15);
-			scale[i].ed.d = floor(1.2e18);
+			scale[i].ed.d = floor(1.2e18); // 1200 * 1.0e15
 		} else if (sscanf(temp, "%ld%c", &a, &x) == 2 && x == '.') {
 			scale[i].ji.n = 2; // whole cents
 			scale[i].ji.d = 1;

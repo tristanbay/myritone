@@ -1,4 +1,9 @@
+#ifndef LINE_MAX
 #define LINE_MAX 256
+#endif
+
+#ifndef MYRITONE_H
+#define MYRITONE_H
 
 typedef struct ratio
 {
@@ -20,3 +25,5 @@ void extract_header(FILE* scale_in, char* title, unsigned* scale_len);
 void read_scale(FILE* scale_in, scalenote* scale, unsigned len);
 
 void print_scale(scalenote* scale, unsigned len);
+
+#endif

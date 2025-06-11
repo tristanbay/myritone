@@ -22,7 +22,7 @@ int main(int argc, char** argv)
 	return 0;
 }
 
-_Bool wrong_args_check(int argc)
+bool wrong_args_check(int argc)
 {
 	if (argc < 2) {
 		printf("Must specify the name of the input file\n");

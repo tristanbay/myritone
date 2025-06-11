@@ -1,6 +1,11 @@
+#ifndef MAIN_H
+#define MAIN_H
+
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
 #include <stdbool.h>
 
-_Bool wrong_args_check(int argc);
+bool wrong_args_check(int argc);
+
+#endif
