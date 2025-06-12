@@ -1,4 +1,3 @@
-#include "main.h"
 #include "myritone.h"
 
 void remove_whitespace(char* str)

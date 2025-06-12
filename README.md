@@ -30,10 +30,10 @@ On Windows:
 ## Running
 
 On Linux and (likely) macOS, etc.:
-- Enter the command `./build/myritone -i <input file> -t <type/format> [type-dependent options (more info below)] -o <output file, no extension>`
-    - `-i` and `-t` are required options
+- Enter the command `./build/myritone -i <input_file.file_extension> [type-dependent options (more info below)] -o <output_file.file_extension>`
+    - `-i` is a required option
     - `-o` is optional (Myritone program prints to terminal if not given)
-    - Valid arguments for `-t` and their options:
+    - Valid file extensions and their options when used for the output file:
         - `ascl` (Ableton Live scale)
             - `-p` (reference pitch in Hz) and `-n` (reference MIDI note number)
         - `myri` (Myritone)
@@ -44,6 +44,5 @@ On Linux and (likely) macOS, etc.:
         - `tun` (AnaMark v1 or v2)
             - `-p` (reference pitch in Hz) `-n` (reference MIDI note number), and `-V` (version 1 or 2)
 - A test scale file is included as an input file example
-- Save the output of the command to a file with "\<previous command> > \<some text file>.scl"
 
 Not tested on Windows

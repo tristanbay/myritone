@@ -1,4 +1,3 @@
-#include "main.h"
 #include "myritone.h"
 
 void print_scale(scalenote* scale, unsigned len)
