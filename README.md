@@ -31,7 +31,7 @@ On Windows:
 
 On Linux and (likely) macOS, etc.:
 - Enter the command `./build/myritone -i <input_file.file_extension> [type-dependent options (more info below)] -o <output_file.file_extension>`
-    - `-i` is required
+    - `-i` is a required option
     - `-o` is optional (Myritone program prints to terminal if not given)
     - Valid file extensions and their options when used for the output file:
         - `ascl` (Ableton Live scale)
