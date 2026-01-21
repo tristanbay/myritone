@@ -1,7 +1,6 @@
 #include "myritone.h"
 
-void remove_whitespace(char* str)
-{
+void remove_whitespace(char* str) {
 	unsigned counter = 0, i;
 	while (str[counter] == ' ' || str[counter] == '\t')
 		++counter;
@@ -13,16 +12,14 @@ void remove_whitespace(char* str)
 	}
 }
 
-void read_thru_comment_lines(char* str, FILE* scale_in)
-{
+void read_thru_comment_lines(char* str, FILE* scale_in) {
 	do {
 		fgets(str, LINE_MAX, scale_in);
 		remove_whitespace(str);
 	} while (!feof(scale_in) && *str == '!');
 }
 
-void extract_header(FILE* scale_in, char* title, unsigned* scale_len)
-{
+void extract_header(FILE* scale_in, char* title, unsigned* scale_len) {
 	char temp[LINE_MAX];
 	read_thru_comment_lines(temp, scale_in);
 	strncpy(title, temp, strnlen(temp, LINE_MAX) - 1);
@@ -30,8 +27,7 @@ void extract_header(FILE* scale_in, char* title, unsigned* scale_len)
 	sscanf(temp, "%u\n", scale_len);
 }
 
-void read_scale(FILE* scale_in, scalenote* scale, unsigned len)
-{
+void read_scale(FILE* scale_in, scalenote* scale, unsigned len) {
 	char temp[LINE_MAX];
 	long a;
 	unsigned long b, c, d;
