@@ -1,6 +1,7 @@
 #include "myritone.h"
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
 	FILE* input;
 	myri_scale_t scale;
 	if (argc != 2) { // # of args check
