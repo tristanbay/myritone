@@ -56,57 +56,64 @@ void trim_ending(char* str)
 	*end = '\0'; // trim end by changing pointed-to byte to \0
 }
 
-void notes_and_channels(char* buf, char* tok, uint8_t* nt, uint8_t* ch)
+void notes_and_channels(char* buf, uint8_t* nt, uint8_t* ch)
 { // buf will already have the relevant data in it
-	tok = strtok(buf, ",");
-	int64_t temp_nt, temp_ch;
-	if (tok) {
-		trim_ending(tok); // trim whitespace from tok
-		trim_beginning(tok);
-		temp_nt = atoi(tok);	
-		if ((temp_nt < 1) || (temp_nt > 255)) { // check for note count out of bounds
-			printf("Invalid number of notes per channel\n");
+	trim_beginning(buf);
+	trim_ending(buf);
+	int64_t nt_temp, ch_temp;
+	switch (sscanf(buf, "%d,%d", nt_temp, ch_temp)) {
+		case 0:
+			printf("Note and channel count not given\n");
 			exit(EXIT_FAILURE);
-		}
-		*nt = (uint8_t)temp_nt;
-		trim_ending(buf); // trim whitespace from buf
-		trim_beginning(buf);
-		temp_ch = atoi(buf);
-		if ((temp_ch < 1) || (temp_ch > 255)) { // check for channel count out of bounds
-			printf("Invalid number of channels\n");
+			break;
+		case 1:
+			if ((nt_temp < 1) || (nt_temp > CHANNEL_SIZE)) {
+				printf("Invalid number of notes per channel, must be 1 to 128\n");
+				exit(EXIT_FAILURE);
+			}
+			*nt = (uint8_t)nt_temp;
+			*ch = 1;
+			break;
+		case 2:
+			if ((nt_temp < 1) || (nt_temp > CHANNEL_SIZE)) {
+				printf("Invalid number of notes per channel, must be 1 to %d\n",
+					CHANNEL_SIZE);
+				exit(EXIT_FAILURE);
+			}
+			if ((ch_temp < 1) || (ch_temp > CHANNEL_COUNT)) {
+				printf("Invalid number of channels, must be 1 to %d\n", CHANNEL_COUNT);
+				exit(EXIT_FAILURE);
+			}
+			*nt = (uint8_t)nt_temp;
+			*ch = (uint8_t)ch_temp;
+			break;
+		default:
+			printf("Too many parameters for note and channel!\n");
 			exit(EXIT_FAILURE);
-		}
-		*ch = (uint8_t)temp_ch;
-	} else {
-		trim_ending(tok); // trim whitespace from tok
-		trim_beginning(tok);
-		temp_nt = atoi(buf);	
-		if ((temp_nt < 1) || (temp_nt > 255)) { // check for note count out of bounds
-			printf("Invalid number of notes per channel\n");
-			exit(EXIT_FAILURE);
-		}
-		*nt = (uint8_t)temp_nt;
-		*ch = 1;
+			break;
 	}
 }
 
-void get_notes(FILE* scale_in, myri_note_t** data)
+void get_notes(FILE* scale_in, char* buf, myri_note_t** data, uint8_t nt_ct, uint8_t ch_ct)
 {
-
+	for (uint8_t ch = 0; ch < ch_ct; ++ch) {
+		for (uint8_t nt = 0; nt < nt_ct; ++nt) {
+		}
+	}
 }
 
 myri_scale_t read_scale(FILE* scale_in)
 {
 	myri_scale_t scale;
-	char* buf[STR_MAX];
-	char* tok[STR_MAX];
+	char buf[STR_MAX];
 	comment_check(buf, scale_in);
 	trim_ending(buf);
-	strcpy(scale.title, buf); // get title
+	strncpy(scale.title, buf, STR_MAX); // get title
 	comment_check(buf, scale_in);
-	notes_and_channels(buf, tok, &scale.used_notes, &scale.used_channels);
+	notes_and_channels(buf, &scale.used_notes, &scale.used_channels);
 		// get number of notes and channels ("a, b" or if only "a" then b = 1)
-	get_notes(scale_in, scale.data); // get notes
+	get_notes(scale_in, buf, scale.data,
+		scale.used_notes, scale.used_channels); // get notes
 }
 
 #endif
