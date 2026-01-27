@@ -28,23 +28,16 @@ typedef struct myri_note_s
 typedef struct myri_scale_s
 {
 	char title[STR_MAX]; // scale title
-	myri_note_t data[CHANNEL_SIZE][CHANNEL_COUNT]; // scale notes, up to 16 note channels
 	uint8_t used_notes; // how many notes are used per channel
 	uint8_t used_channels; // how many channels are used
+	myri_ratio_t equave_ji, equave_ed; // what interval to repeat the scale at
+	myri_note_t data[CHANNEL_SIZE][CHANNEL_COUNT]; // scale notes, up to 16 note channels
 } myri_scale_t;
 
 void trim_beginning(char* str)
 { // trims leading whitespace
 	while (isspace(str[0]))
 		++str; // trim first char off by advancing pointer
-}
-
-void comment_check(char* buf, FILE* scale_in)
-{ // trims leading whitespace and checks for comments
-	do { // if leading ! or just whitespace then go to next line
-		buf = fgets(buf, STR_MAX, scale_in);
-		trim_beginning(buf);
-	} while ((buf[0] == '\0') || (buf[0] == '!'));
 }
 
 void trim_ending(char* str)
@@ -56,45 +49,110 @@ void trim_ending(char* str)
 	*end = '\0'; // trim end by changing pointed-to byte to \0
 }
 
-void notes_and_channels(char* buf, uint8_t* nt, uint8_t* ch)
-{ // buf will already have the relevant data in it
-	trim_beginning(buf);
-	trim_ending(buf);
-	int64_t nt_temp, ch_temp;
-	switch (sscanf(buf, "%d,%d", nt_temp, ch_temp)) {
-		case 0:
-			printf("Note and channel count not given\n");
-			exit(EXIT_FAILURE);
-			break;
-		case 1:
-			if ((nt_temp < 1) || (nt_temp > CHANNEL_SIZE)) {
-				printf("Invalid number of notes per channel, must be 1 to 128\n");
-				exit(EXIT_FAILURE);
-			}
-			*nt = (uint8_t)nt_temp;
-			*ch = 1;
-			break;
-		case 2:
-			if ((nt_temp < 1) || (nt_temp > CHANNEL_SIZE)) {
-				printf("Invalid number of notes per channel, must be 1 to %d\n",
-					CHANNEL_SIZE);
-				exit(EXIT_FAILURE);
-			}
-			if ((ch_temp < 1) || (ch_temp > CHANNEL_COUNT)) {
-				printf("Invalid number of channels, must be 1 to %d\n", CHANNEL_COUNT);
-				exit(EXIT_FAILURE);
-			}
-			*nt = (uint8_t)nt_temp;
-			*ch = (uint8_t)ch_temp;
-			break;
-		default:
-			printf("Too many parameters for note and channel!\n");
-			exit(EXIT_FAILURE);
-			break;
+void comment_check(char* buf, FILE* scale_in)
+{ // trims leading whitespace and checks for comments
+	do { // if leading ! or just whitespace then go to next line
+		buf = fgets(buf, STR_MAX, scale_in);
+		trim_beginning(buf);
+	} while ((buf[0] == '\0') || (buf[0] == '!'));
+}
+
+void get_note_ratios(char* input, myri_ratio_t* ji, myri_ratio_t* ed)
+{
+	int64_t a;
+	uint64_t b, c, d;
+	double e;
+	char x;
+	trim_ending(input);
+	trim_beginning(input);
+	if (sscanf(input, "%lu/%lu", &c, &d) == 2) {
+		ji->n = c; // JI fraction
+		ji->d = d;
+		ed->n = 1;
+		ed->d = 1;
+	} else if (sscanf(input, "%lu\\%lu<%ld/%lu%c", &a, &b, &c, &d, &x) == 5 && x == '>') {
+		ji->n = c; // equal division of fraction
+		ji->d = d;
+		ed->n = a;
+		ed->d = b;
+	} else if (sscanf(input, "%ld\\%lu", &a, &b) == 2) {
+		ji->n = 2; // equal division of octave
+		ji->d = 1;
+		ed->n = a;
+		ed->d = b;
+	} else if (sscanf(input, "%ld.%lu", &a, &b) == 2) {
+		ji->n = 2; // decimal cents
+		ji->d = 1;
+		sscanf(input, "%lf", &e);
+		ed->n = round(e * 1.0e15);
+		ed->d = floor(1.2e18); // 1200 * 1.0e15
+	} else if (sscanf(input, "%ld%c", &a, &x) == 2 && x == '.') {
+		ji->n = 2; // whole cents
+		ji->d = 1;
+		ed->n = a;
+		ed->d = 1200;
+	} else {
+		printf("Invalid note ratio format\n");
+		exit(EXIT_FAILURE);
 	}
 }
 
-void get_notes(FILE* scale_in, char* buf, myri_note_t** data, uint8_t nt_ct, uint8_t ch_ct)
+void get_rest_of_header(char* buf, myri_scale_t* scale)
+{ // buf will already have the relevant data in it
+	int32_t used_notes_temp = 0;
+	int32_t used_channels_temp = 0;
+	char used_notes_str[STR_MAX];
+	char used_channels_str[STR_MAX];
+	char equave_str[STR_MAX] = "0\\0";
+	char* delim;
+
+	strncpy(used_notes_str, buf, STR_MAX);
+	delim = strchr(used_notes_str, ',');
+	if (!delim) { // only number of notes
+		trim_ending(used_notes_str);
+		trim_beginning(used_notes_str);
+		used_notes_temp = atoi(used_notes_str);
+		if (used_notes_temp < 1 || used_notes_temp > CHANNEL_SIZE) {
+			printf("Invalid number of notes\n");
+			exit(EXIT_FAILURE);
+		}
+		used_channels_temp = 1;
+	} else { // note count per channel, number of channels, and equave
+		strncpy(used_channels_str, delim + 1, STR_MAX);
+		*delim = '\0';
+		delim = strchr(used_channels_str, ',');
+		if (!delim) {
+			printf("Invalid formatting or missing equave\n");
+			exit(EXIT_FAILURE);
+		}
+		strncpy(equave_str, delim + 1, STR_MAX);
+		*delim = '\0';
+		delim = strchr(equave_str, '!');
+		if (delim)
+			*delim = '\0';
+		trim_ending(used_notes_str);
+		trim_beginning(used_notes_str);
+		used_notes_temp = atoi(used_notes_str);
+		if (used_notes_temp < 1 || used_notes_temp > CHANNEL_SIZE) {
+			printf("Invalid number of notes\n");
+			exit(EXIT_FAILURE);
+		}
+		trim_ending(used_channels_str);
+		trim_beginning(used_channels_str);
+		used_channels_temp = atoi(used_channels_str);
+		if (used_channels_temp < 1 || used_channels_temp > CHANNEL_COUNT) {
+			printf("Invalid number of channels\n");
+			exit(EXIT_FAILURE);
+		}
+		trim_ending(equave_str);
+		trim_beginning(equave_str);
+	}
+	scale->used_notes = (uint8_t)used_notes_temp;
+	scale->used_channels = (uint8_t)used_channels_temp;
+	get_note_ratios(equave_str, &(scale->equave_ji), &(scale->equave_ed));
+}
+
+void get_notes(FILE* input, char* buf, myri_scale_t* scale)
 {
 	for (uint8_t ch = 0; ch < ch_ct; ++ch) {
 		for (uint8_t nt = 0; nt < nt_ct; ++nt) {
@@ -110,10 +168,8 @@ myri_scale_t read_scale(FILE* scale_in)
 	trim_ending(buf);
 	strncpy(scale.title, buf, STR_MAX); // get title
 	comment_check(buf, scale_in);
-	notes_and_channels(buf, &scale.used_notes, &scale.used_channels);
-		// get number of notes and channels ("a, b" or if only "a" then b = 1)
-	get_notes(scale_in, buf, scale.data,
-		scale.used_notes, scale.used_channels); // get notes
+	get_rest_of_header(buf, &scale); // get # of notes and channels, and equave
+	get_notes(scale_in, buf, &scale); // get notes
 }
 
 #endif
