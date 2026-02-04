@@ -52,7 +52,10 @@ void trim_ending(char* str)
 void comment_check(char* buf, FILE* scale_in)
 { // trims leading whitespace and checks for comments
 	do { // if leading ! or just whitespace then go to next line
-		buf = fgets(buf, STR_MAX, scale_in);
+		if (!fgets(buf, STR_MAX, scale_in)) {
+			printf("File ended earlier than expected\n");
+			exit(EXIT_FAILURE);
+		}
 		trim_beginning(buf);
 	} while ((buf[0] == '\0') || (buf[0] == '!'));
 }
@@ -154,8 +157,47 @@ void get_rest_of_header(char* buf, myri_scale_t* scale)
 
 void get_notes(FILE* input, char* buf, myri_scale_t* scale)
 {
+	char note[STR_MAX], name[STR_MAX], color[STR_MAX];
+	char* delim = NULL;
 	for (uint8_t ch = 0; ch < ch_ct; ++ch) {
 		for (uint8_t nt = 0; nt < nt_ct; ++nt) {
+			if (!fgets(buf, STR_MAX, input) && nt < nt_ct - 1 && ch < ch_ct - 1) {
+				printf("File ended earlier than expected\n");
+				exit(EXIT_FAILURE);
+			}
+			strncpy(note, buf, STR_MAX); // copy note interval
+			delim = strchr(buf, "\"");
+			if (!delim) {
+				name = ""; // default to empty
+			} else {
+				strncpy(name, delim + 1, STR_MAX); // copy note name
+			}
+			delim = strchr(buf, "#");
+			if (!delim) {
+				color = "ffffff"; // default to white
+			} else {
+				strncpy(color, delim + 1, STR_MAX); // copy note color
+			}
+			delim = strchr(note, "\""); // prepare note interval string
+			if (delim)
+				*delim = "\0"; // trim to just before beginning double quote for name
+			trim_ending(note);
+			trim_beginning(note);
+			if (strnlen(name, STR_MAX)) { // if string not empty
+				delim = strchr(name, "\""); // prepare note name string
+				if (!delim) {
+					printf("Note name should be enclosed in 1 pair of double quotes\n");
+					exit(EXIT_FAILURE);
+				}
+				*delim = "\0"; // trim to just before ending double quote
+				trim_ending(name);
+				trim_beginning(name);
+			}
+			sscanf(color, "%2x%2x%2x", &(scale->data[nt][ch].color[0]), // add data from
+									   &(scale->data[nt][ch].color[1]), // strings to note
+									   &(scale->data[nt][ch].color[2])); // structure
+			strncpy(scale->data[nt][ch].name, name, STR_MAX);
+			get_note_ratios(note, &(scale->data[nt][ch].ji), &(scale->data[nt][ch].ed));
 		}
 	}
 }
