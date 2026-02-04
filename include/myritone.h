@@ -2,6 +2,7 @@
 #define MYRITONE_H
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
@@ -34,16 +35,17 @@ typedef struct myri_scale_s
 	myri_note_t data[CHANNEL_SIZE][CHANNEL_COUNT]; // scale notes, up to 16 note channels
 } myri_scale_t;
 
-void trim_beginning(char* str)
+char* trim_beginning(char* str)
 { // trims leading whitespace
 	while (isspace(str[0]))
 		++str; // trim first char off by advancing pointer
+	return str;
 }
 
 void trim_ending(char* str)
 { // trims trailing whitespace from string
 	uint8_t new_len = strlen(str);
-	char* end = str[new_len - 1];
+	char* end = &str[new_len - 1];
 	while ((new_len > 1) && (isspace(*(end - 1)))) // assumes \0 at end of string
 		--end;
 	*end = '\0'; // trim end by changing pointed-to byte to \0
@@ -51,12 +53,14 @@ void trim_ending(char* str)
 
 void comment_check(char* buf, FILE* scale_in)
 { // trims leading whitespace and checks for comments
+	char temp_str[STR_MAX];
 	do { // if leading ! or just whitespace then go to next line
 		if (!fgets(buf, STR_MAX, scale_in)) {
 			printf("File ended earlier than expected\n");
 			exit(EXIT_FAILURE);
 		}
-		trim_beginning(buf);
+		strncpy(temp_str, trim_beginning(buf), STR_MAX);
+		strncpy(buf, temp_str, STR_MAX);
 	} while ((buf[0] == '\0') || (buf[0] == '!'));
 }
 
@@ -66,8 +70,10 @@ void get_note_ratios(char* input, myri_ratio_t* ji, myri_ratio_t* ed)
 	uint64_t b, c, d;
 	double e;
 	char x;
+	char temp_str[STR_MAX];
 	trim_ending(input);
-	trim_beginning(input);
+	strncpy(temp_str, trim_beginning(input), STR_MAX);
+	strncpy(input, temp_str, STR_MAX);
 	if (sscanf(input, "%lu/%lu", &c, &d) == 2) {
 		ji->n = c; // JI fraction
 		ji->d = d;
@@ -107,13 +113,15 @@ void get_rest_of_header(char* buf, myri_scale_t* scale)
 	char used_notes_str[STR_MAX];
 	char used_channels_str[STR_MAX];
 	char equave_str[STR_MAX] = "0\\0";
-	char* delim;
+	char temp_str[STR_MAX];
+	char* delim = NULL;
 
 	strncpy(used_notes_str, buf, STR_MAX);
 	delim = strchr(used_notes_str, ',');
 	if (!delim) { // only number of notes
 		trim_ending(used_notes_str);
-		trim_beginning(used_notes_str);
+		strncpy(temp_str, trim_beginning(used_notes_str), STR_MAX);
+		strncpy(used_notes_str, temp_str, STR_MAX);
 		used_notes_temp = atoi(used_notes_str);
 		if (used_notes_temp < 1 || used_notes_temp > CHANNEL_SIZE) {
 			printf("Invalid number of notes\n");
@@ -134,21 +142,24 @@ void get_rest_of_header(char* buf, myri_scale_t* scale)
 		if (delim)
 			*delim = '\0';
 		trim_ending(used_notes_str);
-		trim_beginning(used_notes_str);
+		strncpy(temp_str, trim_beginning(used_notes_str), STR_MAX);
+		strncpy(used_notes_str, temp_str, STR_MAX);
 		used_notes_temp = atoi(used_notes_str);
 		if (used_notes_temp < 1 || used_notes_temp > CHANNEL_SIZE) {
 			printf("Invalid number of notes\n");
 			exit(EXIT_FAILURE);
 		}
 		trim_ending(used_channels_str);
-		trim_beginning(used_channels_str);
+		strncpy(temp_str, trim_beginning(used_channels_str), STR_MAX);
+		strncpy(used_channels_str, temp_str, STR_MAX);
 		used_channels_temp = atoi(used_channels_str);
 		if (used_channels_temp < 1 || used_channels_temp > CHANNEL_COUNT) {
 			printf("Invalid number of channels\n");
 			exit(EXIT_FAILURE);
 		}
 		trim_ending(equave_str);
-		trim_beginning(equave_str);
+		strncpy(temp_str, trim_beginning(equave_str), STR_MAX);
+		strncpy(equave_str, temp_str, STR_MAX);
 	}
 	scale->used_notes = (uint8_t)used_notes_temp;
 	scale->used_channels = (uint8_t)used_channels_temp;
@@ -158,6 +169,9 @@ void get_rest_of_header(char* buf, myri_scale_t* scale)
 void get_notes(FILE* input, char* buf, myri_scale_t* scale)
 {
 	char note[STR_MAX], name[STR_MAX], color[STR_MAX];
+	uint8_t ch_ct = scale->used_channels;
+	uint8_t nt_ct = scale->used_notes;
+	char temp_str[STR_MAX];
 	char* delim = NULL;
 	for (uint8_t ch = 0; ch < ch_ct; ++ch) {
 		for (uint8_t nt = 0; nt < nt_ct; ++nt) {
@@ -166,36 +180,40 @@ void get_notes(FILE* input, char* buf, myri_scale_t* scale)
 				exit(EXIT_FAILURE);
 			}
 			strncpy(note, buf, STR_MAX); // copy note interval
-			delim = strchr(buf, "\"");
+			delim = strchr(buf, '"');
 			if (!delim) {
-				name = ""; // default to empty
+				name[0] = '\0'; // default to empty
 			} else {
 				strncpy(name, delim + 1, STR_MAX); // copy note name
 			}
-			delim = strchr(buf, "#");
+			delim = strchr(buf, '#');
 			if (!delim) {
-				color = "ffffff"; // default to white
+				for (uint8_t i = 0; i < COLOR_CH * 2; ++i) // default to white
+					color[i] = 'f';
+				color[COLOR_CH * 2] = '\0';
 			} else {
 				strncpy(color, delim + 1, STR_MAX); // copy note color
 			}
-			delim = strchr(note, "\""); // prepare note interval string
+			delim = strchr(note, '"'); // prepare note interval string
 			if (delim)
-				*delim = "\0"; // trim to just before beginning double quote for name
+				*delim = '\0'; // trim to just before beginning double quote for name
 			trim_ending(note);
-			trim_beginning(note);
+			strncpy(temp_str, trim_beginning(note), STR_MAX);
+			strncpy(note, temp_str, STR_MAX);
 			if (strnlen(name, STR_MAX)) { // if string not empty
-				delim = strchr(name, "\""); // prepare note name string
+				delim = strchr(name, '"'); // prepare note name string
 				if (!delim) {
 					printf("Note name should be enclosed in 1 pair of double quotes\n");
 					exit(EXIT_FAILURE);
 				}
-				*delim = "\0"; // trim to just before ending double quote
+				*delim = '\0'; // trim to just before ending double quote
 				trim_ending(name);
-				trim_beginning(name);
-			}
-			sscanf(color, "%2x%2x%2x", &(scale->data[nt][ch].color[0]), // add data from
-									   &(scale->data[nt][ch].color[1]), // strings to note
-									   &(scale->data[nt][ch].color[2])); // structure
+				strncpy(temp_str, trim_beginning(name), STR_MAX);
+				strncpy(name, temp_str, STR_MAX);
+			} // vv add data from strings to note structure vv
+			sscanf(color, "%2x%2x%2x", (uint32_t*)&(scale->data[nt][ch].color[0]),
+									   (uint32_t*)&(scale->data[nt][ch].color[1]),
+									   (uint32_t*)&(scale->data[nt][ch].color[2]));
 			strncpy(scale->data[nt][ch].name, name, STR_MAX);
 			get_note_ratios(note, &(scale->data[nt][ch].ji), &(scale->data[nt][ch].ed));
 		}
@@ -212,6 +230,7 @@ myri_scale_t read_scale(FILE* scale_in)
 	comment_check(buf, scale_in);
 	get_rest_of_header(buf, &scale); // get # of notes and channels, and equave
 	get_notes(scale_in, buf, &scale); // get notes
+	return scale;
 }
 
 #endif

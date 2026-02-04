@@ -1,4 +1,5 @@
 #include "myritone.h"
+#include "output.h"
 
 int main(int argc, char** argv)
 {
