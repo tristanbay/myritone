@@ -71,7 +71,7 @@ void get_note_ratios(char* input, myri_ratio_t* ji, myri_ratio_t* ed)
 	int64_t a;
 	uint64_t b, c, d;
 	double e;
-	uint64_t log_e;
+	int64_t log_e;
 	char x;
 	char temp_str[STR_MAX];
 	trim_ending(input);
@@ -99,6 +99,8 @@ void get_note_ratios(char* input, myri_ratio_t* ji, myri_ratio_t* ed)
 		ji->d = 1;
 		sscanf(input, "%lf", &e);
 		log_e = ceil(log10(abs(e)));
+		if (log_e < 0)
+			log_e = 0;
 		ed->n = round(e * pow(10, 15 - log_e));
 		ed->d = floor(1.2 * pow(10, 18 - log_e)); // 1200 * 10^(15-log_e)
 		while (ed->n % 10 == 0 && ed->d % 10 == 0) { // take off any unnecessary zeros
