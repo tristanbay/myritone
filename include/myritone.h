@@ -23,7 +23,7 @@ typedef struct myri_note_s
 { // arbitrary cent values stored as ji = 2/1 and ed = x/1200
 	myri_ratio_t ji, ed; // ji for just ratio, ed to logarithmically divide it
 	char name[STR_MAX]; // note name
-	int8_t color[COLOR_CH]; // first element is red channel, second is green, third is blue
+	uint8_t color[COLOR_CH]; // first element is red channel, second is green, third is blue
 } myri_note_t;
 
 typedef struct myri_scale_s
@@ -46,9 +46,11 @@ void trim_ending(char* str)
 { // trims trailing whitespace from string
 	uint8_t new_len = strlen(str);
 	char* end = &str[new_len - 1];
-	while ((new_len > 1) && (isspace(*(end - 1)))) // assumes \0 at end of string
+	while (new_len > 1 && isspace(*end)) {
 		--end;
-	*end = '\0'; // trim end by changing pointed-to byte to \0
+		--new_len;
+	}
+	*(end + 1) = '\0'; // trim end by changing pointed-to byte to \0
 }
 
 void comment_check(char* buf, FILE* scale_in)
@@ -69,6 +71,7 @@ void get_note_ratios(char* input, myri_ratio_t* ji, myri_ratio_t* ed)
 	int64_t a;
 	uint64_t b, c, d;
 	double e;
+	uint64_t log_e;
 	char x;
 	char temp_str[STR_MAX];
 	trim_ending(input);
@@ -89,12 +92,19 @@ void get_note_ratios(char* input, myri_ratio_t* ji, myri_ratio_t* ed)
 		ji->d = 1;
 		ed->n = a;
 		ed->d = b;
-	} else if (sscanf(input, "%ld.%lu", &a, &b) == 2) {
+	} else if (sscanf(input, "%ld.%lu", &a, &b) == 2
+			|| sscanf(input, ".%lu", &a) == 1
+			|| sscanf(input, "-.%lu", &a) == 1) {
 		ji->n = 2; // decimal cents
 		ji->d = 1;
 		sscanf(input, "%lf", &e);
-		ed->n = round(e * 1.0e15);
-		ed->d = floor(1.2e18); // 1200 * 1.0e15
+		log_e = ceil(log10(abs(e)));
+		ed->n = round(e * pow(10, 15 - log_e));
+		ed->d = floor(1.2 * pow(10, 18 - log_e)); // 1200 * 10^(15-log_e)
+		while (ed->n % 10 == 0 && ed->d % 10 == 0) { // take off any unnecessary zeros
+			ed->n /= 10;
+			ed->d /= 10;
+		}
 	} else if (sscanf(input, "%ld%c", &a, &x) == 2 && x == '.') {
 		ji->n = 2; // whole cents
 		ji->d = 1;
@@ -175,10 +185,7 @@ void get_notes(FILE* input, char* buf, myri_scale_t* scale)
 	char* delim = NULL;
 	for (uint8_t ch = 0; ch < ch_ct; ++ch) {
 		for (uint8_t nt = 0; nt < nt_ct; ++nt) {
-			if (!fgets(buf, STR_MAX, input) && nt < nt_ct - 1 && ch < ch_ct - 1) {
-				printf("File ended earlier than expected\n");
-				exit(EXIT_FAILURE);
-			}
+			comment_check(buf, input);
 			strncpy(note, buf, STR_MAX); // copy note interval
 			delim = strchr(buf, '"');
 			if (!delim) {
@@ -210,12 +217,12 @@ void get_notes(FILE* input, char* buf, myri_scale_t* scale)
 				trim_ending(name);
 				strncpy(temp_str, trim_beginning(name), STR_MAX);
 				strncpy(name, temp_str, STR_MAX);
-			} // vv add data from strings to note structure vv
-			sscanf(color, "%2x%2x%2x", (uint32_t*)&(scale->data[nt][ch].color[0]),
-									   (uint32_t*)&(scale->data[nt][ch].color[1]),
-									   (uint32_t*)&(scale->data[nt][ch].color[2]));
-			strncpy(scale->data[nt][ch].name, name, STR_MAX);
+			} // vv add scale note data to note struct vv
 			get_note_ratios(note, &(scale->data[nt][ch].ji), &(scale->data[nt][ch].ed));
+			strncpy(scale->data[nt][ch].name, name, STR_MAX); // add scale name to note struct
+			sscanf(color, "%2x%2x%2x", &(scale->data[nt][ch].color[0]),
+									   &(scale->data[nt][ch].color[1]), // add data from strings to
+									   &(scale->data[nt][ch].color[2])); // note structure
 		}
 	}
 }
