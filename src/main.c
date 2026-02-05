@@ -14,7 +14,7 @@ int main(int argc, char** argv)
 		printf("Could not open file %s\n", argv[1]);
 		return EXIT_FAILURE;
 	}
-	scale = read_scale(input);
+	scale = myri_read_scale(input);
 	fclose(input);
 	print_scale(scale);
 	return EXIT_SUCCESS;
