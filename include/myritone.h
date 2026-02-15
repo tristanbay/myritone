@@ -23,16 +23,16 @@ typedef struct myri_note_s
 { // arbitrary cent values stored as ji = 2/1 and ed = x/1200
 	myri_ratio_t ji, ed; // ji for just ratio, ed to logarithmically divide it
 	char name[MYRI_STR_MAX]; // note name
-	uint8_t color[MYRI_CHANNEL_CH]; // first element is red channel, second is green, third is blue
+	uint8_t color[MYRI_CHANNEL_CH]; // 1st element is red channel, 2nd is green, 3rd is blue
 } myri_note_t;
 
 typedef struct myri_scale_s
 {
 	char title[MYRI_STR_MAX]; // scale title
-	uint8_t used_notes; // how many notes are used per channel
-	uint8_t used_channels; // how many channels are used
+	uint8_t used_notes; // how many notes are used per channel (up to 128)
+	uint8_t used_channels; // how many channels are used (up to 16)
 	myri_ratio_t equave_ji, equave_ed; // what interval to repeat the scale at
-	myri_note_t data[MYRI_CHANNEL_SIZE][MYRI_CHANNEL_COUNT]; // scale notes, up to 16 note channels
+	myri_note_t data[MYRI_CHANNEL_SIZE][MYRI_CHANNEL_COUNT]; // scale note data
 } myri_scale_t;
 
 char* myri_trim_beginning(char* str)
@@ -53,20 +53,21 @@ void myri_trim_ending(char* str)
 	*(end + 1) = '\0'; // trim end by changing pointed-to byte to \0
 }
 
-void myri_comment_check(char* buf, FILE* scale_in)
+bool myri_comment_check(char* buf, FILE* scale_in)
 { // trims leading whitespace and checks for comments
 	char temp_str[MYRI_STR_MAX];
 	do { // if leading ! or just whitespace then go to next line
 		if (!fgets(buf, MYRI_STR_MAX, scale_in)) {
 			printf("File ended earlier than expected\n");
-			exit(EXIT_FAILURE);
+			return false;
 		}
 		strncpy(temp_str, myri_trim_beginning(buf), MYRI_STR_MAX);
 		strncpy(buf, temp_str, MYRI_STR_MAX);
 	} while ((buf[0] == '\0') || (buf[0] == '!'));
+	return true;
 }
 
-void myri_get_note_ratios(char* input, myri_ratio_t* ji, myri_ratio_t* ed)
+bool myri_get_note_ratios(char* input, myri_ratio_t* ji, myri_ratio_t* ed)
 {
 	int64_t a;
 	uint64_t b, c, d;
@@ -114,11 +115,12 @@ void myri_get_note_ratios(char* input, myri_ratio_t* ji, myri_ratio_t* ed)
 		ed->d = 1200;
 	} else {
 		printf("Invalid note ratio format\n");
-		exit(EXIT_FAILURE);
+		return false;
 	}
+	return true;
 }
 
-void myri_get_rest_of_header(char* buf, myri_scale_t* scale)
+bool myri_get_rest_of_header(char* buf, myri_scale_t* scale)
 { // buf will already have the relevant data in it
 	int32_t used_notes_temp = 0;
 	int32_t used_channels_temp = 0;
@@ -137,7 +139,7 @@ void myri_get_rest_of_header(char* buf, myri_scale_t* scale)
 		used_notes_temp = atoi(used_notes_str);
 		if (used_notes_temp < 1 || used_notes_temp > MYRI_CHANNEL_SIZE) {
 			printf("Invalid number of notes\n");
-			exit(EXIT_FAILURE);
+			return false;
 		}
 		used_channels_temp = 1;
 	} else { // note count per channel, number of channels, and equave
@@ -146,7 +148,7 @@ void myri_get_rest_of_header(char* buf, myri_scale_t* scale)
 		delim = strchr(used_channels_str, ',');
 		if (!delim) {
 			printf("Invalid formatting or missing equave\n");
-			exit(EXIT_FAILURE);
+			return false;
 		}
 		strncpy(equave_str, delim + 1, MYRI_STR_MAX);
 		*delim = '\0';
@@ -159,7 +161,7 @@ void myri_get_rest_of_header(char* buf, myri_scale_t* scale)
 		used_notes_temp = atoi(used_notes_str);
 		if (used_notes_temp < 1 || used_notes_temp > MYRI_CHANNEL_SIZE) {
 			printf("Invalid number of notes\n");
-			exit(EXIT_FAILURE);
+			return false;
 		}
 		myri_trim_ending(used_channels_str);
 		strncpy(temp_str, myri_trim_beginning(used_channels_str), MYRI_STR_MAX);
@@ -167,7 +169,7 @@ void myri_get_rest_of_header(char* buf, myri_scale_t* scale)
 		used_channels_temp = atoi(used_channels_str);
 		if (used_channels_temp < 1 || used_channels_temp > MYRI_CHANNEL_COUNT) {
 			printf("Invalid number of channels\n");
-			exit(EXIT_FAILURE);
+			return false;
 		}
 		myri_trim_ending(equave_str);
 		strncpy(temp_str, myri_trim_beginning(equave_str), MYRI_STR_MAX);
@@ -175,10 +177,12 @@ void myri_get_rest_of_header(char* buf, myri_scale_t* scale)
 	}
 	scale->used_notes = (uint8_t)used_notes_temp;
 	scale->used_channels = (uint8_t)used_channels_temp;
-	myri_get_note_ratios(equave_str, &(scale->equave_ji), &(scale->equave_ed));
+	if (!myri_get_note_ratios(equave_str, &(scale->equave_ji), &(scale->equave_ed)))
+		return false;
+	return true;
 }
 
-void myri_get_notes(FILE* input, char* buf, myri_scale_t* scale)
+bool myri_get_notes(FILE* input, char* buf, myri_scale_t* scale)
 {
 	char note[MYRI_STR_MAX], name[MYRI_STR_MAX], color[MYRI_STR_MAX];
 	uint8_t ch_ct = scale->used_channels;
@@ -187,7 +191,8 @@ void myri_get_notes(FILE* input, char* buf, myri_scale_t* scale)
 	char* delim = NULL;
 	for (uint8_t ch = 0; ch < ch_ct; ++ch) {
 		for (uint8_t nt = 0; nt < nt_ct; ++nt) {
-			myri_comment_check(buf, input);
+			if (!myri_comment_check(buf, input))
+				return false;
 			strncpy(note, buf, MYRI_STR_MAX); // copy note interval
 			delim = strchr(buf, '"');
 			if (!delim) {
@@ -213,32 +218,44 @@ void myri_get_notes(FILE* input, char* buf, myri_scale_t* scale)
 				delim = strchr(name, '"'); // prepare note name string
 				if (!delim) {
 					printf("Note name should be enclosed in 1 pair of double quotes\n");
-					exit(EXIT_FAILURE);
+					return false;
 				}
 				*delim = '\0'; // trim to just before ending double quote
 				myri_trim_ending(name);
 				strncpy(temp_str, myri_trim_beginning(name), MYRI_STR_MAX);
 				strncpy(name, temp_str, MYRI_STR_MAX);
-			} // vv add scale note data to note struct vv
-			myri_get_note_ratios(note, &(scale->data[nt][ch].ji), &(scale->data[nt][ch].ed));
-			strncpy(scale->data[nt][ch].name, name, MYRI_STR_MAX); // add scale name to note struct
-			sscanf(color, "%2x%2x%2x", &(scale->data[nt][ch].color[0]),
-									   &(scale->data[nt][ch].color[1]), // add data from strings to
-									   &(scale->data[nt][ch].color[2])); // note structure
+			}
+			if (!myri_get_note_ratios(note, // add scale note data to note struct
+					&(scale->data[nt][ch].ji), &(scale->data[nt][ch].ed))) {
+				return false;
+			}
+			strncpy(scale->data[nt][ch].name, name, MYRI_STR_MAX); // add header data to 
+			sscanf(color, "%2x%2x%2x", &(scale->data[nt][ch].color[0]), // note structure
+									   &(scale->data[nt][ch].color[1]),
+									   &(scale->data[nt][ch].color[2]));
 		}
 	}
+	return true;
 }
 
-myri_scale_t myri_read_scale(FILE* scale_in)
+myri_scale_t myri_read_scale(FILE* scale_in, bool* success) // bool arg in case of read fail
 {
+	myri_scale_t null_scale = {
+		"", 1, 1, { 0, 0 }, { 0, 0 },
+		.data[0][0] = { { 0, 0 }, { 0, 0 }, "", { 255, 255, 255 } }
+	};
 	myri_scale_t scale;
 	char buf[MYRI_STR_MAX];
-	myri_comment_check(buf, scale_in);
+	if (!myri_comment_check(buf, scale_in))
+		return null_scale;
 	myri_trim_ending(buf);
 	strncpy(scale.title, buf, MYRI_STR_MAX); // get title
-	myri_comment_check(buf, scale_in);
-	myri_get_rest_of_header(buf, &scale); // get # of notes and channels, and equave
-	myri_get_notes(scale_in, buf, &scale); // get notes
+	if (!myri_comment_check(buf, scale_in))
+		return null_scale;
+	if (!myri_get_rest_of_header(buf, &scale)) // get # of notes and channels, and equave
+		return null_scale;
+	if (!myri_get_notes(scale_in, buf, &scale)) // get notes
+		return null_scale;
 	return scale;
 }
 
