@@ -11,7 +11,7 @@
 #define MYRI_STR_MAX 256
 #define MYRI_CHANNEL_SIZE 128
 #define MYRI_CHANNEL_COUNT 16
-#define MYRI_CHANNEL_CH 3
+#define MYRI_COLOR_CH 3
 
 typedef struct myri_ratio_s
 {
@@ -23,7 +23,7 @@ typedef struct myri_note_s
 { // arbitrary cent values stored as ji = 2/1 and ed = x/1200
 	myri_ratio_t ji, ed; // ji for just ratio, ed to logarithmically divide it
 	char name[MYRI_STR_MAX]; // note name
-	uint8_t color[MYRI_CHANNEL_CH]; // 1st element is red channel, 2nd is green, 3rd is blue
+	uint8_t color[MYRI_COLOR_CH]; // 1st element is red channel, 2nd is green, 3rd is blue
 } myri_note_t;
 
 typedef struct myri_scale_s
@@ -202,9 +202,9 @@ bool myri_get_notes(FILE* input, char* buf, myri_scale_t* scale)
 			}
 			delim = strchr(buf, '#');
 			if (!delim) {
-				for (uint8_t i = 0; i < MYRI_CHANNEL_CH * 2; ++i) // default to white
+				for (uint8_t i = 0; i < MYRI_COLOR_CH * 2; ++i) // default to white
 					color[i] = 'f';
-				color[MYRI_CHANNEL_CH * 2] = '\0';
+				color[MYRI_COLOR_CH * 2] = '\0';
 			} else {
 				strncpy(color, delim + 1, MYRI_STR_MAX); // copy note color
 			}
