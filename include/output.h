@@ -5,7 +5,7 @@
 
 void print_note(myri_note_t data)
 { // function for printing each note
-	printf("%-4ld\\%-4lu<%-3ld/%-3lu>\t%-10s\t#%02x%02x%02x\n",
+	printf("%-4ld\\%-4lu<%-3ld/%-3lu>\t%-10s\tColor: #%02x%02x%02x\n",
 		data.ed.n, data.ed.d, data.ji.n, data.ji.d, data.name, data.color[0], data.color[1], data.color[2]);
 }
 
