@@ -11,7 +11,7 @@
 #define MYRI_STR_MAX 256
 #define MYRI_CHANNEL_SIZE 128
 #define MYRI_CHANNEL_COUNT 16
-#define MYRI_CHANNEL_CH 3
+#define MYRI_COLOR_CH 3
 
 typedef struct myri_ratio_s
 {
@@ -23,7 +23,7 @@ typedef struct myri_note_s
 { // arbitrary cent values stored as ji = 2/1 and ed = x/1200
 	myri_ratio_t ji, ed; // ji for just ratio, ed to logarithmically divide it
 	char name[MYRI_STR_MAX]; // note name
-	uint8_t color[MYRI_CHANNEL_CH]; // 1st element is red channel, 2nd is green, 3rd is blue
+	uint8_t color[MYRI_COLOR_CH]; // 1st element is red channel, 2nd is green, 3rd is blue
 } myri_note_t;
 
 typedef struct myri_scale_s
@@ -37,20 +37,17 @@ typedef struct myri_scale_s
 
 char* myri_trim_beginning(char* str)
 { // trims leading whitespace
-	while (isspace(str[0]))
+	while (isspace((unsigned char)*str))
 		++str; // trim first char off by advancing pointer
 	return str;
 }
 
 void myri_trim_ending(char* str)
 { // trims trailing whitespace from string
-	uint8_t new_len = strlen(str);
-	char* end = &str[new_len - 1];
-	while (new_len > 1 && isspace(*end)) {
-		--end;
+	uint8_t new_len = strnlen(str, MYRI_STR_MAX);
+	while (new_len > 0 && isspace((unsigned char)str[new_len - 1]))
 		--new_len;
-	}
-	*(end + 1) = '\0'; // trim end by changing pointed-to byte to \0
+	str[new_len] = '\0'; // trim end by changing new ending byte to \0
 }
 
 bool myri_comment_check(char* buf, FILE* scale_in)
@@ -197,14 +194,20 @@ bool myri_get_notes(FILE* input, char* buf, myri_scale_t* scale)
 			delim = strchr(buf, '"');
 			if (!delim) {
 				name[0] = '\0'; // default to empty
+				delim = strchr(buf, '#');
 			} else {
 				strncpy(name, delim + 1, MYRI_STR_MAX); // copy note name
+				delim = strchr(delim + 1, '"');
+				if (!delim) {
+					printf("Note name should be enclosed in 1 pair of double quotes\n");
+					return false;
+				}
+				delim = strchr(delim + 1, '#');
 			}
-			delim = strchr(buf, '#');
 			if (!delim) {
-				for (uint8_t i = 0; i < MYRI_CHANNEL_CH * 2; ++i) // default to white
+				for (uint8_t i = 0; i < MYRI_COLOR_CH * 2; ++i) // default to white
 					color[i] = 'f';
-				color[MYRI_CHANNEL_CH * 2] = '\0';
+				color[MYRI_COLOR_CH * 2] = '\0';
 			} else {
 				strncpy(color, delim + 1, MYRI_STR_MAX); // copy note color
 			}
@@ -217,7 +220,7 @@ bool myri_get_notes(FILE* input, char* buf, myri_scale_t* scale)
 			if (strnlen(name, MYRI_STR_MAX)) { // if string not empty
 				delim = strchr(name, '"'); // prepare note name string
 				if (!delim) {
-					printf("Note name should be enclosed in 1 pair of double quotes\n");
+					printf("The second double quote for the note name disappeared\n");
 					return false;
 				}
 				*delim = '\0'; // trim to just before ending double quote
@@ -229,10 +232,10 @@ bool myri_get_notes(FILE* input, char* buf, myri_scale_t* scale)
 					&(scale->data[nt][ch].ji), &(scale->data[nt][ch].ed))) {
 				return false;
 			}
-			strncpy(scale->data[nt][ch].name, name, MYRI_STR_MAX); // add header data to 
-			sscanf(color, "%2x%2x%2x", &(scale->data[nt][ch].color[0]), // note structure
-									   &(scale->data[nt][ch].color[1]),
-									   &(scale->data[nt][ch].color[2]));
+			strncpy(scale->data[nt][ch].name, name, MYRI_STR_MAX); // add name
+			sscanf(color, "%2hhx%2hhx%2hhx", &(scale->data[nt][ch].color[0]), // add color
+											 &(scale->data[nt][ch].color[1]),
+											 &(scale->data[nt][ch].color[2]));
 		}
 	}
 	return true;
