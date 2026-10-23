@@ -197,6 +197,11 @@ bool myri_get_notes(FILE* input, char* buf, myri_scale_t* scale)
 				delim = strchr(buf, '#');
 			} else {
 				strncpy(name, delim + 1, MYRI_STR_MAX); // copy note name
+				delim = strchr(delim + 1, '"');
+				if (!delim) {
+					printf("Note name should be enclosed in 1 pair of double quotes\n");
+					return false;
+				}
 				delim = strchr(delim + 1, '#');
 			}
 			if (!delim) {
@@ -215,7 +220,7 @@ bool myri_get_notes(FILE* input, char* buf, myri_scale_t* scale)
 			if (strnlen(name, MYRI_STR_MAX)) { // if string not empty
 				delim = strchr(name, '"'); // prepare note name string
 				if (!delim) {
-					printf("Note name should be enclosed in 1 pair of double quotes\n");
+					printf("The second double quote for the note name disappeared\n");
 					return false;
 				}
 				*delim = '\0'; // trim to just before ending double quote
