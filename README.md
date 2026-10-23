@@ -19,7 +19,7 @@ The name "Myritone" comes from the words "myriad" and "tone", hence the meaning,
 ## Building
 
 On Linux:
-- Clone this repository with `git clone \<this repository>`
+- Clone this repository with `git clone <this repository>`
 - Add folder to root directory called `build`
 - With the terminal in the root directory of the cloned repository, type `make`
 
