@@ -37,20 +37,17 @@ typedef struct myri_scale_s
 
 char* myri_trim_beginning(char* str)
 { // trims leading whitespace
-	while (isspace(str[0]))
+	while (isspace((unsigned char)*str))
 		++str; // trim first char off by advancing pointer
 	return str;
 }
 
 void myri_trim_ending(char* str)
 { // trims trailing whitespace from string
-	uint8_t new_len = strlen(str);
-	char* end = &str[new_len - 1];
-	while (new_len > 1 && isspace(*end)) {
-		--end;
+	uint8_t new_len = strnlen(str, MYRI_STR_MAX);
+	while (new_len > 0 && isspace((unsigned char)str[new_len - 1]))
 		--new_len;
-	}
-	*(end + 1) = '\0'; // trim end by changing pointed-to byte to \0
+	str[new_len] = '\0'; // trim end by changing new ending byte to \0
 }
 
 bool myri_comment_check(char* buf, FILE* scale_in)
@@ -197,10 +194,11 @@ bool myri_get_notes(FILE* input, char* buf, myri_scale_t* scale)
 			delim = strchr(buf, '"');
 			if (!delim) {
 				name[0] = '\0'; // default to empty
+				delim = strchr(buf, '#');
 			} else {
 				strncpy(name, delim + 1, MYRI_STR_MAX); // copy note name
+				delim = strchr(delim + 1, '#');
 			}
-			delim = strchr(buf, '#');
 			if (!delim) {
 				for (uint8_t i = 0; i < MYRI_COLOR_CH * 2; ++i) // default to white
 					color[i] = 'f';
@@ -229,10 +227,10 @@ bool myri_get_notes(FILE* input, char* buf, myri_scale_t* scale)
 					&(scale->data[nt][ch].ji), &(scale->data[nt][ch].ed))) {
 				return false;
 			}
-			strncpy(scale->data[nt][ch].name, name, MYRI_STR_MAX); // add header data to 
-			sscanf(color, "%2x%2x%2x", &(scale->data[nt][ch].color[0]), // note structure
-									   &(scale->data[nt][ch].color[1]),
-									   &(scale->data[nt][ch].color[2]));
+			strncpy(scale->data[nt][ch].name, name, MYRI_STR_MAX); // add name
+			sscanf(color, "%2hhx%2hhx%2hhx", &(scale->data[nt][ch].color[0]), // add color
+											 &(scale->data[nt][ch].color[1]),
+											 &(scale->data[nt][ch].color[2]));
 		}
 	}
 	return true;
