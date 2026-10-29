@@ -1,26 +1,26 @@
   ! this is a test scale
-	 	Test Scale
+	 	Test Scale   
  12, 2, 19\30<3/1>
 !
 		-1\4<2/3> "First note"
 	 .999
 -2\53
--40.00303 "Another note" #ff250a
+-40.00303 "Another note" #ff250a don't mind this text
  3\70
-1\19<18/5>
- 32/27
-4/3 #7777ff
+1\19<18/5>	  	
+ 32/27 Should ignore this text
+4/3 #7777ff ignore this
  1\4<5/1>
 850.
-1130.554 "Name has a # in it"
-2/1
+1130.554 "Name has a # in it" should be ignored
+2 octave!!!
 
 		-.25
 	 3\2<26/28>
 -1\53
 0.00303 "Name also has #" #0045fe
  4\41
-2\19<18/5> "Yet another note"
+2\19<18/5> "Yet another note"	
  81/64 #151515
 3/2
  1\3<5/1>

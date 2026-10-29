@@ -64,6 +64,17 @@ bool myri_comment_check(char* buf, FILE* scale_in)
 	return true;
 }
 
+char* myri_first_space(char* str)
+{
+	char* sp = str;
+	int16_t i;
+	for (i = 0; i <= MYRI_STR_MAX && !isspace((unsigned char)*sp) && *sp != '\0'; ++i)
+		++sp; // check for whitespace characters or terminator character to max str len + 1
+	if (i == MYRI_STR_MAX || *sp == '\0')
+		return NULL;
+	return sp;
+}
+
 bool myri_get_note_ratios(char* input, myri_ratio_t* ji, myri_ratio_t* ed)
 {
 	int64_t a;
@@ -72,9 +83,12 @@ bool myri_get_note_ratios(char* input, myri_ratio_t* ji, myri_ratio_t* ed)
 	int64_t log_e;
 	char x;
 	char temp_str[MYRI_STR_MAX];
-	myri_trim_ending(input);
+	char* sp = NULL;
 	strncpy(temp_str, myri_trim_beginning(input), MYRI_STR_MAX);
 	strncpy(input, temp_str, MYRI_STR_MAX);
+	sp = myri_first_space(input);
+	if (sp)
+		sp = '\0'; // trim string to first remaining whitespace character
 	if (sscanf(input, "%lu/%lu", &c, &d) == 2) {
 		ji->n = c; // JI fraction
 		ji->d = d;
@@ -110,8 +124,13 @@ bool myri_get_note_ratios(char* input, myri_ratio_t* ji, myri_ratio_t* ed)
 		ji->d = 1;
 		ed->n = a;
 		ed->d = 1200;
+	} else if (sscanf(input, "%lu", &c) == 1) {
+		ji->n = c; // whole number JI ratio
+		ji->d = 1;
+		ed->n = 1;
+		ed->d = 1;
 	} else {
-		printf("Invalid note ratio format\n");
+		printf("Invalid note interval format\n");
 		return false;
 	}
 	return true;
@@ -126,7 +145,6 @@ bool myri_get_rest_of_header(char* buf, myri_scale_t* scale)
 	char equave_str[MYRI_STR_MAX] = "0\\0";
 	char temp_str[MYRI_STR_MAX];
 	char* delim = NULL;
-
 	strncpy(used_notes_str, buf, MYRI_STR_MAX);
 	delim = strchr(used_notes_str, ',');
 	if (!delim) { // only number of notes
@@ -191,20 +209,20 @@ bool myri_get_notes(FILE* input, char* buf, myri_scale_t* scale)
 			if (!myri_comment_check(buf, input))
 				return false;
 			strncpy(note, buf, MYRI_STR_MAX); // copy note interval
-			delim = strchr(buf, '"');
-			if (!delim) {
+			delim = strchr(buf, '"'); // find first double quote for note name
+			if (!delim) { // if no note name
 				name[0] = '\0'; // default to empty
-				delim = strchr(buf, '#');
-			} else {
+				delim = strchr(buf, '#'); // find next pound symbol for color
+			} else { // if there is a note name
 				strncpy(name, delim + 1, MYRI_STR_MAX); // copy note name
 				delim = strchr(delim + 1, '"');
-				if (!delim) {
-					printf("Note name should be enclosed in 1 pair of double quotes\n");
+				if (!delim) { // if no closing double quote
+					printf("Note name should be enclosed in a pair of double quotes\n");
 					return false;
 				}
-				delim = strchr(delim + 1, '#');
+				delim = strchr(delim + 1, '#'); // find next pound symbol for color
 			}
-			if (!delim) {
+			if (!delim) { // if no note color
 				for (uint8_t i = 0; i < MYRI_COLOR_CH * 2; ++i) // default to white
 					color[i] = 'f';
 				color[MYRI_COLOR_CH * 2] = '\0';
@@ -233,9 +251,17 @@ bool myri_get_notes(FILE* input, char* buf, myri_scale_t* scale)
 				return false;
 			}
 			strncpy(scale->data[nt][ch].name, name, MYRI_STR_MAX); // add name
-			sscanf(color, "%2hhx%2hhx%2hhx", &(scale->data[nt][ch].color[0]), // add color
-											 &(scale->data[nt][ch].color[1]),
-											 &(scale->data[nt][ch].color[2]));
+			delim = myri_first_space(color);
+			if (delim)
+				delim = '\0';
+			if (sscanf(color, "%2hhx%2hhx%2hhx",
+					&(scale->data[nt][ch].color[0]),
+					&(scale->data[nt][ch].color[1]),
+					&(scale->data[nt][ch].color[2])) != 3) {
+				scale->data[nt][ch].color[0] = 255; // if invalid color format, use white
+				scale->data[nt][ch].color[1] = 255;
+				scale->data[nt][ch].color[2] = 255;
+			}
 		}
 	}
 	return true;
