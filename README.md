@@ -2,7 +2,7 @@
 
 A microtuning file format based off of [Scala files](https://www.huygens-fokker.org/scala/scl_format.html), but updated for integration in modern DAWs:
 * Directly express equal divisions of the octave with `a\b` = a/b of an octave
-* Express equal divisions of other just intervals with `a\b\<c/d>` = a/b of interval c/d
+* Express equal divisions of other just intervals with `a\b<c/d>` = a/b of interval c/d
 * Use intervals with numerators and denominators that have up to 20 decimal digits (a maximum of 2^64 - 1, or about 18.4 quintillion)
 * Multi-channel support (retune the notes for multiple MIDI channels differently at the same time)
 * Note names with `""`
